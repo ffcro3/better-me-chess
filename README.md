@@ -1,4 +1,4 @@
-# Better Me — Chess
+<p align="center"><img src="docs/logo.png" alt="Better Me — Chess" width="360"></p>
 
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)

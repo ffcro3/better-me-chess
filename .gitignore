@@ -12,3 +12,8 @@ flask.log
 data/history.db
 data/*.pgn
 data/*.jsonl
+
+# personal style-model checkpoint (username-named) — only the generic
+# demo_policy.pt is meant to be public
+models/*_policy.pt
+!models/demo_policy.pt

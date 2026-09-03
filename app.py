@@ -8,6 +8,7 @@ Then open http://127.0.0.1:5000 in your browser.
 """
 import argparse
 import io
+import json
 import os
 import sqlite3
 from datetime import datetime, timezone
@@ -77,6 +78,7 @@ def init_db():
     _ensure_column(conn, "games", "rating_before", "INTEGER")
     _ensure_column(conn, "games", "rating_after", "INTEGER")
     _ensure_column(conn, "games", "bot_elo", "INTEGER")
+    _ensure_column(conn, "games", "review_json", "TEXT")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS ratings (
             username TEXT PRIMARY KEY,
@@ -488,6 +490,9 @@ def api_history_review(game_id):
     if row is None:
         return jsonify({"error": "not found"}), 404
 
+    if row["review_json"]:
+        return jsonify(json.loads(row["review_json"]))
+
     # cap eval magnitude before diffing: once Stockfish spots a forced mate it
     # reports scores near mate_score (e.g. ~99997), and a single such jump can
     # swing "centipawn loss" by tens of thousands even when the position was
@@ -498,9 +503,15 @@ def api_history_review(game_id):
     pgn_game = chess.pgn.read_game(io.StringIO(row["pgn"]))
     player_is_white = row["player_color"] == "white"
 
+    # depth=12 (not time-based): deterministic re-analysis of the same game
+    # always gives the same numbers, and stays fast enough for a full game —
+    # the result is cached below so this only runs once per game anyway.
+    REVIEW_DEPTH = 12
+
     board = pgn_game.board()
     analysis = []
     with chess.engine.SimpleEngine.popen_uci(str(ENGINE_PATH)) as engine:
+        engine.configure({"Threads": 1})
         for ply, move in enumerate(pgn_game.mainline_moves()):
             is_player_move = (board.turn == chess.WHITE) == player_is_white
             san = board.san(move)
@@ -509,13 +520,13 @@ def api_history_review(game_id):
             entry = {"ply": ply, "move_no": move_no, "san": san, "is_player": is_player_move}
 
             if is_player_move:
-                info_before = engine.analyse(board, chess.engine.Limit(depth=15))
+                info_before = engine.analyse(board, chess.engine.Limit(depth=REVIEW_DEPTH))
                 best_move = info_before["pv"][0]
                 cp_before = info_before["score"].pov(board.turn).score(mate_score=100_000)
                 cp_before = max(-CP_CAP, min(CP_CAP, cp_before))
 
                 board.push(move)
-                info_after = engine.analyse(board, chess.engine.Limit(depth=15))
+                info_after = engine.analyse(board, chess.engine.Limit(depth=REVIEW_DEPTH))
                 cp_after_opp_pov = info_after["score"].pov(not board.turn).score(mate_score=100_000)
                 cp_after_opp_pov = max(-CP_CAP, min(CP_CAP, cp_after_opp_pov))
                 board.pop()
@@ -537,12 +548,15 @@ def api_history_review(game_id):
         sum(a.get("cp_loss", 0) for a in player_moves) / len(player_moves) if player_moves else 0
     )
 
-    return jsonify({
+    result = {
         "moves": analysis,
         "blunders": blunders,
         "avg_cp_loss": round(avg_cp_loss, 1),
         "result": row["result"],
-    })
+    }
+    db.execute("UPDATE games SET review_json = ? WHERE id = ?", (json.dumps(result), game_id))
+    db.commit()
+    return jsonify(result)
 
 
 def main():
