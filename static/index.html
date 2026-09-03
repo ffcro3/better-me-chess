@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Better Me — Chess</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>Better <span>Me</span> Chess</h1>
+  <nav class="tabs">
+    <button id="tab-play" class="active">Play</button>
+    <button id="tab-history">History</button>
+  </nav>
+  <div id="rating-badge" title="Local rating — tracks how you're doing against each bot difficulty">Rating: –</div>
+</header>
+
+<main>
+
+  <!-- ===== PLAY VIEW ===== -->
+  <section id="view-play" class="view active">
+    <div class="play-layout">
+      <div class="board-column">
+        <div class="player-bar" id="bar-top">
+          <div class="avatar">🤖</div>
+          <div>
+            <div class="player-name" id="opp-name">Bot</div>
+            <div class="player-sub" id="opp-sub">difficulty</div>
+          </div>
+        </div>
+
+        <div id="board-wrap"><div id="board"></div></div>
+
+        <div class="player-bar" id="bar-bottom">
+          <div class="avatar">🧑</div>
+          <div>
+            <div class="player-name">You</div>
+            <div class="player-sub" id="status-line-inline">White to move</div>
+          </div>
+        </div>
+
+        <div class="review-banner" id="review-banner">
+          <span>Reviewing move history</span>
+          <button id="back-to-live">Back to live</button>
+        </div>
+      </div>
+
+      <div class="sidebar">
+        <div class="card">
+          <div class="btn-row">
+            <button class="primary" id="new-game-btn" style="flex:1">New Game</button>
+            <button class="danger" id="resign-btn" disabled>Resign</button>
+          </div>
+          <button class="ghost" id="game-over-btn" style="display:none;width:100%;margin-top:8px">🏁 Game over — tap for details</button>
+          <div id="status-line"></div>
+        </div>
+
+        <div class="card">
+          <h3>Moves</h3>
+          <div id="move-list"></div>
+          <div class="nav-controls">
+            <button id="nav-start" title="Start">⏮</button>
+            <button id="nav-back" title="Back">◀</button>
+            <button id="nav-fwd" title="Forward">▶</button>
+            <button id="nav-end" title="Live">⏭</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Coach</h3>
+          <div id="coach-box">Ask for a hint if you're stuck — it'll show what your "better you" blend would play here.</div>
+          <div class="btn-row" style="margin-top:10px">
+            <button class="ghost" id="hint-btn" style="flex:1">💡 Hint</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== HISTORY VIEW ===== -->
+  <section id="view-history" class="view">
+    <div class="card" id="rating-summary-card" style="margin-bottom:16px">
+      <h3>Your Rating</h3>
+      <div class="review-stats" id="rating-stats"></div>
+      <div id="rating-per-diff" style="margin-top:10px;font-size:13px;color:var(--muted)"></div>
+      <div style="margin-top:8px;font-size:11px;color:var(--muted)">
+        Local rating only — not synced with chess.com/FIDE. Bot Elo values are rough estimates, not measured.
+      </div>
+    </div>
+    <div class="history-list" id="history-list">
+      <div class="empty-note">Loading...</div>
+    </div>
+  </section>
+
+  <!-- ===== REVIEW VIEW ===== -->
+  <section id="view-review" class="view">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
+      <button class="ghost" id="review-back-btn">← Back to History</button>
+      <div class="btn-row">
+        <button class="ghost" id="rv-copy-btn">📋 Copy PGN</button>
+        <button class="ghost" id="rv-export-btn">⬇ Export PGN</button>
+      </div>
+    </div>
+    <div class="review-layout">
+      <div class="board-column" style="width:480px">
+        <div id="review-board-wrap"><div id="review-board"></div></div>
+        <div class="nav-controls">
+          <button id="rv-nav-start" title="Start">⏮</button>
+          <button id="rv-nav-back" title="Back">◀</button>
+          <button id="rv-play-btn" title="Autoplay">▶ Play</button>
+          <button id="rv-nav-fwd" title="Forward">▶</button>
+          <button id="rv-nav-end" title="End">⏭</button>
+        </div>
+        <div class="card">
+          <h3>Moves</h3>
+          <div id="review-move-list"></div>
+        </div>
+      </div>
+      <div class="sidebar" style="width:380px">
+        <div class="card">
+          <h3>Game summary</h3>
+          <div class="review-stats">
+            <div class="stat-box"><div class="stat-value" id="rv-avgcp">–</div><div class="stat-label">Avg cp loss</div></div>
+            <div class="stat-box"><div class="stat-value" id="rv-blunders">–</div><div class="stat-label">Blunders</div></div>
+            <div class="stat-box"><div class="stat-value" id="rv-result">–</div><div class="stat-label">Result</div></div>
+          </div>
+          <div id="rv-detail" style="font-size:13px;color:var(--muted)"></div>
+        </div>
+        <div class="card">
+          <h3>Worst moments</h3>
+          <div id="rv-blunder-list"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ===== New Game modal ===== -->
+<div class="modal-overlay" id="new-game-modal">
+  <div class="modal">
+    <h2>New Game</h2>
+    <p class="hint">Set up a game against your blend engine.</p>
+
+    <div class="section-label">Play as</div>
+    <div class="choice-row" id="color-choices">
+      <div class="choice-btn selected" data-value="white">White</div>
+      <div class="choice-btn" data-value="black">Black</div>
+    </div>
+
+    <div class="section-label">Difficulty</div>
+    <div class="choice-row" id="difficulty-choices">
+      <div class="choice-btn" data-value="easy">Easy</div>
+      <div class="choice-btn selected" data-value="medium">Medium</div>
+      <div class="choice-btn" data-value="hard">Hard</div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="ghost" id="new-game-cancel">Cancel</button>
+      <button class="primary" id="new-game-start">Start Game</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Game Over modal ===== -->
+<div class="modal-overlay" id="gameover-modal">
+  <div class="modal">
+    <div class="result-headline" id="go-headline">Game over</div>
+    <p class="hint" id="go-sub"></p>
+    <div class="modal-actions">
+      <button class="ghost" id="go-close">Close</button>
+      <button class="ghost" id="go-review">Review Game</button>
+      <button class="primary" id="go-rematch">New Game</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

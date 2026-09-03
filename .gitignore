@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+
+# Stockfish binary (114MB, over GitHub's 100MB limit — re-downloadable, see README)
+engine/
+
+# local config overrides (see .env.example)
+.env
+flask.log
+
+# personal game history / trained checkpoints
+data/history.db
+data/*.pgn
+data/*.jsonl
